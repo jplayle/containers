@@ -2,16 +2,61 @@
 
 #include <stdexcept>
 #include <utility>
+#include "utils.h"
+
+namespace containers
+{
+    template<typename VECTOR>
+    struct vector_iterator
+    {
+        using val_t = typename VECTOR::val_t;
+        using ref_t = val_t&;
+        using ptr_t = val_t*;
+
+    private:
+        ptr_t _ptr;
+
+    public:
+        vector_iterator(const ptr_t p) :
+            _ptr(p)
+        {}
+
+        ptr_t operator->()
+        {
+            return _ptr;
+        }
+
+        ref_t operator*()
+        {
+            return *_ptr;
+        }
+
+        vector_iterator& operator++()
+        {
+            _ptr++;
+            return *this;
+        }
+
+        vector_iterator& operator--()
+        {
+            _ptr--;
+            return *this;
+        }
+    };
+}
 
 namespace containers
 {
     template<typename T>
     struct vector
     {
+        using val_t = T;
+        using iterator = vector_iterator<vector<T>>;
+
     private:
         std::size_t _size;
         std::size_t _capacity;
-        T _data[];
+        T* _data;
     
     public:
         vector() :
@@ -26,10 +71,17 @@ namespace containers
             _data(allocate(_capacity))
         {}
 
+        vector( const std::size_t& cap, T def ) :
+            _size( cap ),
+            _capacity( cap ),
+            _data(allocate(_capacity))
+        {
+            set_range(def, 0, _capacity);
+        }
+
         ~vector() noexcept
         {
-            dtor_all();
-            ::operator delete(_data, _capacity * sizeof(T));
+            wipe_memory();
         }
 
         /* ACCESS */
@@ -46,9 +98,18 @@ namespace containers
 
         T& operator[](const std::size_t& ix)
         {
-            if (ix >= _size) { throw std::runtime_error("out of bounds"); }
-
+            check_bounds(ix, _capacity);
             return _data[ix];
+        }
+
+        iterator begin()
+        {
+            return iterator(&front());
+        }
+
+        iterator end()
+        {
+            return iterator(&back());
         }
 
         /* MODIFY */
@@ -80,8 +141,15 @@ namespace containers
 
         void clear()
         {
-            dtor_all();
+            destruct_all();
             _size = 0;
+        }
+
+        void set_range(T val, std::size_t ix0, std::size_t ix1)
+        {
+            for (std::size_t ix = ix0; ix < std::min(ix1, _size); ++ix) {
+                _data[ix] = val;
+            }
         }
 
         /* QUERY */
@@ -91,34 +159,16 @@ namespace containers
             return _size;
         }
 
-        const bool contains(const T& val) const
+        const std::size_t& capacity() const
         {
-            std::size_t r = size - 1;
-            std::size_t l = 0;
-
-            while (l <= r)
-            {
-                std::size_t ix = l + ((r - l) / 2);
-
-                if (_data[ix] == val) return true;
-                
-                if (_data[ix] > val) {
-                    r = ix - 1;
-                }
-                else {
-                    l = ix + 1;
-                }
-            }
-
-            return false;
+            return _capacity;
         }
 
     private:
-
-        void dtor_all()
+        void inc_size()
         {
-            for (std::size_t i = 0; i < _size; ++i) {
-                _data[i].~T();
+            if (++_size > _capacity) {
+                reallocate(_capacity * 2);
             }
         }
 
@@ -127,25 +177,30 @@ namespace containers
             return static_cast<T*>(::operator new(cap * sizeof(T)));
         }
 
+        void destruct_all() noexcept
+        {
+            for (std::size_t i = 0; i < _size; ++i) {
+                _data[i].~T();
+            }
+        }
+
+        void wipe_memory() noexcept
+        {
+            destruct_all();
+            ::operator delete(_data, _capacity * sizeof(T));
+        }
+
         void reallocate(const std::size_t& new_cap)
         {
             T* new_data = allocate(new_cap);
 
             for (std::size_t i = 0; i < _size - 1; ++i) {
-                new_data[i] = _data[i];
+                new_data[i] = std::move(_data[i]);
             }
 
-            ~vector();
-
+            wipe_memory();
             _data = new_data;
             _capacity = new_cap;
-        }
-
-        void inc_size()
-        {
-            if (++_size > _capacity) {
-                reallocate(_capacity * 2);
-            }
         }
     };
 }
