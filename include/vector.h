@@ -21,27 +21,14 @@ namespace containers
             _ptr(p)
         {}
 
-        ptr_t operator->()
-        {
-            return _ptr;
-        }
+        ptr_t operator->() { return _ptr; }
+        ref_t operator*() { return *_ptr; }
 
-        ref_t operator*()
-        {
-            return *_ptr;
-        }
+        vector_iterator& operator++() { _ptr++; return *this; }
+        vector_iterator& operator--() { _ptr--; return *this; }
 
-        vector_iterator& operator++()
-        {
-            _ptr++;
-            return *this;
-        }
-
-        vector_iterator& operator--()
-        {
-            _ptr--;
-            return *this;
-        }
+        bool operator==(const vector_iterator& r) const { return _ptr == r._ptr; }
+        bool operator!=(const vector_iterator& r) const { return !(*this == r); }
     };
 }
 
@@ -195,7 +182,7 @@ namespace containers
             T* new_data = allocate(new_cap);
 
             for (std::size_t i = 0; i < _size - 1; ++i) {
-                new_data[i] = std::move(_data[i]);
+                new(&new_data[i]) T(std::move(_data[i]));
             }
 
             wipe_memory();

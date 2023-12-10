@@ -33,9 +33,25 @@ private:
             v.size() == 2;
     }
 
-    const bool queries() const
+    const bool emplace_back() const
     {
-        //vector<std::string> v(20);
+        containers::vector<int> v;
+
+        v.emplace_back(2);
+
+        return
+            v[0] == 2 &&
+            v.size() == 1;
+    }
+
+    const bool range_loop() const
+    {
+        containers::vector<int> v3(10, 24);
+
+        for (auto& i : v3)
+        {
+            i *= 2;
+        }
 
         return true;
     }
@@ -47,6 +63,7 @@ public:
         return
             ctor() &&
             push_back() &&
-            queries();
+            emplace_back() &&
+            range_loop();
     }
 };
